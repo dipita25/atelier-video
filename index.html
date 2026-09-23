@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Atelier Vidéo — Vos images en mouvement</title>
+<title>Atelier Vidéo — Images en mouvement</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -155,6 +155,12 @@
     .upload-icon { font-size: 2.2rem; margin-bottom: 0.6rem; opacity: 0.6; }
     .upload-text { font-size: 0.95rem; color: var(--ink); margin-bottom: 0.2rem; }
     .upload-hint { font-size: 0.75rem; color: var(--ink-dim); }
+    .upload-optional {
+        display: inline-block; margin-top: 0.4rem;
+        padding: 0.15rem 0.5rem; border-radius: 10px;
+        background: #eef4ff; color: var(--info);
+        font-size: 0.68rem; font-weight: 600;
+    }
 
     .images-grid {
         display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
@@ -361,19 +367,28 @@
 
     #noSleepCanvas { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
     #noSleepVideo { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
+
+    .mode-badge {
+        display: inline-block; padding: 0.15rem 0.5rem;
+        border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+        margin-left: 0.4rem;
+    }
+    .mode-badge.image { background: #e3f5e9; color: var(--success); }
+    .mode-badge.text { background: #eef4ff; color: var(--info); }
 </style>
 </head>
 <body>
 
 <header>
     <h1>Atelier Vidéo</h1>
-    <p class="subtitle">Vos images prolongées en vidéo</p>
+    <p class="subtitle">Vos images prolongées — ou créées de toutes pièces</p>
 </header>
 
 <div class="info-banner">
-    <strong>Comment ça marche :</strong> Ajoutez vos images, écrivez votre vision (ou choisissez un effet),
-    c'est parti. Chaque vidéo est <strong>la prolongation animée de votre image</strong> — même sujet, même composition,
-    juste le mouvement, la lumière et l'ambiance en plus. Format <strong>portrait 9:16</strong>.
+    <strong>Deux modes possibles :</strong>
+    <br>📸 <strong>Avec image</strong> — la vidéo prolonge votre photo (même sujet, même composition).
+    <br>✍️ <strong>Sans image</strong> — la vidéo est créée à partir de votre prompt texte seul.
+    <br>Le mode est détecté automatiquement selon votre sélection.
 </div>
 
 <div class="api-panel" id="api-panel">
@@ -402,6 +417,7 @@
     <div class="upload-icon">＋</div>
     <div class="upload-text">Ajoutez vos images</div>
     <div class="upload-hint">Autant que vous voulez — chacune deviendra une vidéo</div>
+    <div class="upload-optional">Optionnel — sans image, le mode texte seul s'active</div>
 </div>
 
 <div class="images-grid" id="images-grid"></div>
@@ -414,14 +430,18 @@
     <div class="section-body">
         <div class="section-content">
             <textarea class="prompt-main" id="main-prompt"
-                placeholder="Décrivez ce que vous voulez que l'intelligence artificielle fasse avec TOUTES vos images. Par exemple :
+                placeholder="Décrivez ce que vous voulez que l'intelligence artificielle crée ou anime. Par exemple :
 
-« Anime doucement chaque image comme si le temps s'arrêtait. Un vent léger fait bouger les cheveux et les feuilles. La lumière est chaude et dorée. Garde chaque sujet exactement identique à la photo originale. »"></textarea>
+« Anime doucement chaque image comme si le temps s'arrêtait. Un vent léger fait bouger les cheveux et les feuilles. La lumière est chaude et dorée. »
+
+Ou, sans image :
+
+« Une forêt brumeuse au lever du jour, lumière traversant les arbres, une silhouette solitaire marche lentement dans la pénombre. »"></textarea>
             <div class="prompt-presets" id="prompt-presets"></div>
             <div class="prompt-main-hint">
-                💡 Ce prompt s'applique à <strong>toutes</strong> les images. Si vous laissez vide et que vous choisissez
-                un effet ci-dessous, l'effet gérera les vidéos. Si vous écrivez un prompt ET choisissez un effet,
-                les deux se combinent.
+                💡 Ce prompt s'applique à <strong>toutes</strong> les vidéos.
+                <br><strong>Sans image</strong> : c'est la seule source créative — décrivez la scène en détail.
+                <br><strong>Avec image</strong> : le prompt enrichit la direction artistique de la prolongation.
             </div>
         </div>
     </div>
@@ -452,6 +472,17 @@
                     <option value="121">5 secondes</option>
                     <option value="153" selected>6,4 secondes (recommandé)</option>
                     <option value="241">10 secondes</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <label class="control-label">Nombre de vidéos à générer</label>
+                <select id="count-select">
+                    <option value="1">1 vidéo</option>
+                    <option value="2">2 vidéos</option>
+                    <option value="3" selected>3 vidéos</option>
+                    <option value="4">4 vidéos</option>
+                    <option value="5">5 vidéos</option>
+                    <option value="6">6 vidéos</option>
                 </select>
             </div>
             <div class="control-row">
@@ -519,7 +550,7 @@ var CREATE_INTERVAL_SAFE = 75000;
 var POLL_INTERVAL_SEC = 8;
 var MAX_POLL_ATTEMPTS = 100;
 
-var TIMING_CACHE_KEY = 'agnes_timing_cache_v10';
+var TIMING_CACHE_KEY = 'agnes_timing_cache_v11';
 var API_KEY_STORAGE = 'agnes_api_key';
 var WAKE_LOCK_PREF = 'agnes_wakelock_enabled';
 
@@ -777,7 +808,13 @@ var PROMPT_PRESETS = [
     { label: '🎬 Cinématique',
       text: 'Anime cette image avec une esthétique cinématographique. Mouvement de caméra lent, lumière dramatique, profondeur de champ. Le sujet reste identique à la photo originale.' },
     { label: '🌫️ Brume poétique',
-      text: 'Prolonge cette image dans une brume douce et poétique. Halo lumineux, particules flottantes, atmosphère mystérieuse. Le sujet reste identique à la photo.' }
+      text: 'Prolonge cette image dans une brume douce et poétique. Halo lumineux, particules flottantes, atmosphère mystérieuse. Le sujet reste identique à la photo.' },
+    { label: '🏞️ Scène fantastique (texte)',
+      text: 'Une vaste forêt brumeuse au lever du jour. La lumière traverse les arbres en rayons obliques. Une silhouette solitaire marche lentement dans la pénombre. Cinematic, atmospheric, mysterious, 9:16 vertical.' },
+    { label: '🌊 Vagues au coucher (texte)',
+      text: 'Des vagues lentes viennent mourir sur une plage de sable noir au coucher du soleil. Lumière chaude, embruns, horizon infini. Cinematic, contemplative, 9:16 vertical.' },
+    { label: '🌌 Cosmos abstrait (texte)',
+      text: 'Une nébuleuse colorée dérive lentement dans le vide spatial. Particules de poussière stellaire, lumière diffuse, couleurs violettes et bleues. Cinematic, abstract, cosmic, 9:16 vertical.' }
 ];
 
 // EFFETS VISUELS
@@ -898,6 +935,7 @@ var state = {
     framing: 'random',
     intensity: 'random',
     durationFrames: 153,
+    videoCount: 3,
     isLoadingImages: false,
     creationAttemptsSinceLastError: 0
 };
@@ -956,24 +994,45 @@ function updateApiPanel() {
     updateGenerateBtn();
 }
 
+function getCurrentMode() {
+    return state.images.length > 0 ? 'image' : 'text';
+}
+
 function updateGenerateBtn() {
     var btn = document.getElementById('generate-btn');
     if (!btn) return;
-    var hasImages = state.images.length > 0;
     var hasKey = !!getApiKey();
-    btn.disabled = !hasImages || !hasKey || state.isRunning || state.isLoadingImages;
+    var hasPrompt = (state.mainPrompt && state.mainPrompt.trim().length > 0);
+    var hasImages = state.images.length > 0;
+    var hasEffect = state.selectedEffect !== null;
+
+    // Mode texte : besoin d'un prompt OU d'un effet
+    var canGenerateText = hasPrompt || hasEffect;
+
+    var canGenerate = hasKey && (hasImages || canGenerateText) && !state.isRunning && !state.isLoadingImages;
+
+    btn.disabled = !canGenerate;
+
     if (state.isLoadingImages) {
         btn.textContent = 'Chargement des images… (' + state.images.length + ')';
-    } else if (state.isRunning) {
+        return;
+    }
+    if (state.isRunning) {
         var total = state.queue.length;
         var done = state.completed + state.failed;
         btn.textContent = 'Création en cours… (' + done + '/' + total + ')';
-    } else if (!hasKey) {
+        return;
+    }
+    if (!hasKey) {
         btn.textContent = 'Ajoutez votre clé API';
-    } else if (!hasImages) {
-        btn.textContent = 'Ajoutez des images';
+        return;
+    }
+    if (hasImages) {
+        btn.textContent = 'Créer ' + state.images.length + ' vidéo' + (state.images.length > 1 ? 's' : '') + ' (mode image)';
+    } else if (canGenerateText) {
+        btn.textContent = 'Créer ' + state.videoCount + ' vidéo' + (state.videoCount > 1 ? 's' : '') + ' (mode texte)';
     } else {
-        btn.textContent = 'Créer ' + state.images.length + ' vidéo' + (state.images.length > 1 ? 's' : '');
+        btn.textContent = 'Ajoutez des images ou écrivez un prompt';
     }
 }
 
@@ -1093,6 +1152,7 @@ function renderImages() {
             removeImage(parseFloat(btn.dataset.remove));
         });
     });
+    updateGenerateBtn();
 }
 
 // RENDUS
@@ -1109,6 +1169,7 @@ function renderPromptPresets() {
             var ta = document.getElementById('main-prompt');
             ta.value = preset.text;
             state.mainPrompt = preset.text;
+            updateGenerateBtn();
             ta.focus();
             showToast('Exemple appliqué', 'success', 1200);
         });
@@ -1151,41 +1212,56 @@ function renderStyles() {
             var val = el.dataset.effect;
             state.selectedEffect = (val === 'none') ? null : val;
             renderStyles();
+            updateGenerateBtn();
         });
     });
 }
 
 // PROMPT
-function buildPrompt() {
+function buildPrompt(hasImage) {
     var allEffects = AMBIANCE_EFFECTS.concat(STYLIZE_EFFECTS);
     var effect = state.selectedEffect ? allEffects.filter(function(s) { return s.id === state.selectedEffect; })[0] : null;
     var isStylize = effect && STYLIZE_EFFECTS.some(function(s) { return s.id === state.selectedEffect; });
     var hasUserPrompt = state.mainPrompt && state.mainPrompt.trim().length > 0;
     var parts = [];
-    if (isStylize) {
-        parts.push('Animate this image as the starting frame. Transform the entire image into the following artistic style:');
+
+    if (hasImage) {
+        // Mode image-to-video : continuité prioritaire
+        if (isStylize) {
+            parts.push('Animate this image as the starting frame. Transform the entire image into the following artistic style:');
+        } else {
+            parts.push(
+                'Animate this exact image as the starting frame. ' +
+                'The subject must remain IDENTICAL to the input image: same face, same expression, same clothing, same pose, same identity. ' +
+                'This is a CONTINUATION of the source image, not a re-imagination. ' +
+                'Preserve the exact composition, framing, and layout of the original image. ' +
+                'The camera does NOT change the subject. Only subtle motion, breathing, light, and atmosphere are animated.'
+            );
+        }
     } else {
-        parts.push(
-            'Animate this exact image as the starting frame. ' +
-            'The subject must remain IDENTICAL to the input image: same face, same expression, same clothing, same pose, same identity. ' +
-            'This is a CONTINUATION of the source image, not a re-imagination. ' +
-            'Preserve the exact composition, framing, and layout of the original image. ' +
-            'The camera does NOT change the subject. Only subtle motion, breathing, light, and atmosphere are animated.'
-        );
+        // Mode text-to-video : le prompt est la source créative principale
+        parts.push('Create a cinematic video from this description.');
     }
+
     if (effect) {
         parts.push(effect.prompt);
-        if (isStylize) {
+        if (isStylize && hasImage) {
             parts.push('Maintain the same subject, pose, and composition as the source image, but reinterpret everything in this new style.');
         }
     }
+
     if (hasUserPrompt) {
-        if (isStylize) {
-            parts.push('Additional artistic direction (applied on top of the style): ' + state.mainPrompt.trim());
+        if (hasImage) {
+            if (isStylize) {
+                parts.push('Additional artistic direction (applied on top of the style): ' + state.mainPrompt.trim());
+            } else {
+                parts.push('Artistic direction (highest priority, must not change the subject identity or composition): ' + state.mainPrompt.trim());
+            }
         } else {
-            parts.push('Artistic direction (highest priority, must not change the subject identity or composition): ' + state.mainPrompt.trim());
+            parts.push('Scene description: ' + state.mainPrompt.trim());
         }
     }
+
     if (state.framing !== 'random' && FRAMING_PRESETS[state.framing]) {
         parts.push(FRAMING_PRESETS[state.framing]);
     }
@@ -1198,7 +1274,7 @@ function buildPrompt() {
     parts.push(randomItem(RANDOM_CAMERA));
     parts.push(randomItem(RANDOM_LIGHTING));
     parts.push('Sound design: minimal foley, soft ambient textures, no music, no instruments, no dialogue');
-    parts.push('Portrait orientation 9:16 vertical, 24fps, no text, no subtitles, no watermarks, consistent character design with the source image');
+    parts.push('Portrait orientation 9:16 vertical, 24fps, no text, no subtitles, no watermarks');
     return parts.join('. ');
 }
 
@@ -1253,10 +1329,15 @@ async function createVideoTask(imageDataUri, prompt) {
     var body = {
         model: MODEL_VIDEO,
         prompt: prompt,
-        image: imageDataUri,
         num_frames: state.durationFrames,
         frame_rate: FRAME_RATE
     };
+
+    // ⚡ Ajout de l'image UNIQUEMENT si elle est fournie
+    if (imageDataUri) {
+        body.image = imageDataUri;
+    }
+
     var res = await apiFetch(API_BASE + '/videos', {
         method: 'POST',
         headers: {
@@ -1265,6 +1346,7 @@ async function createVideoTask(imageDataUri, prompt) {
         },
         body: JSON.stringify(body)
     }, 'Création');
+
     if (!res.ok) {
         var err = await res.text();
         throw new Error('HTTP ' + res.status + ' — ' + err.slice(0, 200));
@@ -1291,7 +1373,7 @@ async function pollVideo(videoId, onProgress) {
             var r = POLL_INTERVAL_SEC;
             while (r > 0) {
                 if (state.stopRequested) throw new Error('Arrêt demandé');
-                onProgress('L\'image prend vie… — ' + r + 's');
+                onProgress('La vidéo prend vie… — ' + r + 's');
                 await sleep(1000);
                 r--;
             }
@@ -1343,14 +1425,15 @@ function renderQueue() {
         else if (item.status === 'processing') { icon = '◐'; statusText = item.progress || 'En cours…'; cls = 'processing'; }
         else if (item.status === 'done') { icon = '●'; statusText = 'Terminé'; cls = 'done'; }
         else if (item.status === 'failed') { icon = '✕'; statusText = 'Échec'; cls = 'failed'; }
+        var label = item.imageIndex >= 0 ? 'Image ' + (item.imageIndex + 1) : 'Vidéo ' + (item.videoIndex + 1);
         return '<div class="queue-item ' + cls + '">' +
             '<div class="q-icon">' + icon + '</div>' +
-            '<div class="q-name">Image ' + (item.imageIndex + 1) + '</div>' +
+            '<div class="q-name">' + label + '</div>' +
             '<div class="q-status">' + esc(statusText) + '</div>' +
         '</div>';
     }).join('');
     if (hidden > 0) {
-        html += '<div class="queue-more">… et ' + hidden + ' autre' + (hidden > 1 ? 's' : '') + ' image' + (hidden > 1 ? 's' : '') + '</div>';
+        html += '<div class="queue-more">… et ' + hidden + ' autre' + (hidden > 1 ? 's' : '') + '</div>';
     }
     queueEl.innerHTML = html;
 }
@@ -1374,20 +1457,23 @@ async function createTaskOnly(item) {
     item.status = 'creating';
     item.progress = 'Préparation…';
     renderQueue();
-    var prompt = buildPrompt();
+    var hasImage = item.image && item.image.dataUri;
+    var prompt = buildPrompt(hasImage);
     item.prompt = prompt;
-    log('[Image ' + (item.imageIndex + 1) + '] Création…');
-    var videoId = await createVideoTask(item.image.dataUri, prompt);
+    var label = item.imageIndex >= 0 ? 'Image ' + (item.imageIndex + 1) : 'Vidéo ' + (item.videoIndex + 1);
+    log('[' + label + '] Création…');
+    var videoId = await createVideoTask(hasImage ? item.image.dataUri : null, prompt);
     item.videoId = videoId;
     item.startTime = Date.now();
     item.status = 'processing';
     item.progress = 'En cours…';
     renderQueue();
-    log('[Image ' + (item.imageIndex + 1) + '] Tâche créée : ' + String(videoId).slice(0, 30) + '…');
+    log('[' + label + '] Tâche créée : ' + String(videoId).slice(0, 30) + '…');
     return videoId;
 }
 
 async function pollTaskAndDisplay(item) {
+    var label = item.imageIndex >= 0 ? 'Image ' + (item.imageIndex + 1) : 'Vidéo ' + (item.videoIndex + 1);
     try {
         var videoUrl = await pollVideo(item.videoId, function(prog) {
             item.progress = prog;
@@ -1395,20 +1481,20 @@ async function pollTaskAndDisplay(item) {
         });
         var elapsed = Date.now() - item.startTime;
         recordGenerationTime(state.durationFrames, elapsed);
-        log('[Image ' + (item.imageIndex + 1) + '] Terminée en ' + (elapsed / 1000).toFixed(1) + 's');
+        log('[' + label + '] Terminée en ' + (elapsed / 1000).toFixed(1) + 's');
         item.status = 'done';
         item.videoUrl = videoUrl;
         item.progress = 'Terminé';
         state.completed++;
         renderQueue();
         updateGenerateBtn();
-        addToGallery(videoUrl, 'Image ' + (item.imageIndex + 1));
+        addToGallery(videoUrl, label);
     } catch (e) {
         if (e.message === 'Arrêt demandé') {
             item.status = 'failed';
             item.progress = 'Arrêté';
         } else {
-            log('[Image ' + (item.imageIndex + 1) + '] ' + e.message);
+            log('[' + label + '] ' + e.message);
             item.status = 'failed';
             item.progress = 'Échec';
             state.failed++;
@@ -1420,48 +1506,88 @@ async function pollTaskAndDisplay(item) {
 
 // WORKFLOW PRINCIPAL
 async function startGeneration() {
-    if (state.isRunning || !state.images.length) return;
+    if (state.isRunning) return;
     if (!getApiKey()) {
         showToast('Ajoutez d\'abord votre clé API', 'error');
         document.getElementById('api-key-input').focus();
         return;
     }
+
     state.mainPrompt = document.getElementById('main-prompt').value.trim();
-    if (!state.mainPrompt && !state.selectedEffect) {
-        if (!confirm('Ni prompt ni effet sélectionné. Continuer avec un style aléatoire ?')) {
-            return;
-        }
+    var hasImages = state.images.length > 0;
+    var hasPrompt = state.mainPrompt.length > 0;
+    var hasEffect = state.selectedEffect !== null;
+
+    // Vérifier qu'on a au moins un guide
+    if (!hasImages && !hasPrompt && !hasEffect) {
+        showToast('Ajoutez des images ou écrivez un prompt', 'error');
+        return;
     }
+
+    // Mode texte : si aucun effet et aucun prompt, demander confirmation
+    if (!hasImages && !hasPrompt && hasEffect) {
+        // OK : un effet seul suffit
+    }
+
     state.isRunning = true;
     state.stopRequested = false;
     state.completed = 0;
     state.failed = 0;
     state.creationAttemptsSinceLastError = 0;
     createIntervalMs = CREATE_INTERVAL_MIN;
-    state.queue = state.images.map(function(img, i) {
-        return {
-            imageIndex: i,
-            image: img,
-            status: 'pending',
-            progress: null,
-            videoId: null,
-            videoUrl: null,
-            prompt: null,
-            startTime: null
-        };
-    });
+
+    // Construire la queue
+    state.queue = [];
+
+    if (hasImages) {
+        // Mode image : une vidéo par image
+        state.queue = state.images.map(function(img, i) {
+            return {
+                imageIndex: i,
+                videoIndex: -1,
+                image: img,
+                status: 'pending',
+                progress: null,
+                videoId: null,
+                videoUrl: null,
+                prompt: null,
+                startTime: null
+            };
+        });
+    } else {
+        // Mode texte : N vidéos
+        for (var i = 0; i < state.videoCount; i++) {
+            state.queue.push({
+                imageIndex: -1,
+                videoIndex: i,
+                image: null,
+                status: 'pending',
+                progress: null,
+                videoId: null,
+                videoUrl: null,
+                prompt: null,
+                startTime: null
+            });
+        }
+    }
+
     document.getElementById('gallery-grid').innerHTML = '';
     document.getElementById('gallery').style.display = 'none';
     document.getElementById('stop-btn').classList.add('visible');
     document.getElementById('generate-btn').disabled = true;
+
     await ensureWakeLockActive();
     renderQueue();
     updateGenerateBtn();
-    log('Démarrage — ' + state.images.length + ' vidéos');
-    log('Prompt principal : ' + (state.mainPrompt ? '"' + state.mainPrompt.slice(0, 60) + '…"' : '(vide)'));
-    log('Effet : ' + (state.selectedEffect || 'aucun'));
+
+    var mode = hasImages ? 'image' : 'texte';
+    log('Démarrage — ' + state.queue.length + ' vidéos (mode ' + mode + ')');
+    if (hasPrompt) log('Prompt : "' + state.mainPrompt.slice(0, 60) + '…"');
+    if (state.selectedEffect) log('Effet : ' + state.selectedEffect);
+
     var totalStart = Date.now();
     var pollingTasks = [];
+
     try {
         for (var i = 0; i < state.queue.length; i++) {
             if (state.stopRequested) break;
@@ -1471,7 +1597,7 @@ async function startGeneration() {
                 pollingTasks.push(pollTaskAndDisplay(item));
             } catch (e) {
                 if (e.message === 'Arrêt demandé') break;
-                log('[Image ' + (i + 1) + '] Échec création : ' + e.message);
+                log('Échec création : ' + e.message);
                 item.status = 'failed';
                 item.progress = 'Échec';
                 state.failed++;
@@ -1483,7 +1609,7 @@ async function startGeneration() {
                 for (var r = waitSec; r > 0; r--) {
                     if (state.stopRequested) break;
                     var nextNum = i + 2;
-                    setStatus('Respiration créative… — Image ' + nextNum + '/' + state.queue.length + ' dans ' + r + 's');
+                    setStatus('Respiration créative… — ' + nextNum + '/' + state.queue.length + ' dans ' + r + 's');
                     await sleep(1000);
                 }
             }
@@ -1495,6 +1621,7 @@ async function startGeneration() {
     } catch (e) {
         log('Erreur globale : ' + e.message);
     }
+
     var totalElapsed = (Date.now() - totalStart) / 1000;
     var summary = state.stopRequested
         ? 'Arrêté — ' + state.completed + '/' + state.queue.length + ' vidéos'
@@ -1503,6 +1630,7 @@ async function startGeneration() {
     setStatus(summary);
     await sleep(4000);
     setStatus(null);
+
     state.isRunning = false;
     state.stopRequested = false;
     document.getElementById('stop-btn').classList.remove('visible');
@@ -1550,12 +1678,20 @@ function stopGeneration() {
     if (mainPrompt) {
         mainPrompt.addEventListener('input', function(e) {
             state.mainPrompt = e.target.value;
+            updateGenerateBtn();
         });
     }
     var durationSelect = document.getElementById('duration-select');
     if (durationSelect) {
         durationSelect.addEventListener('change', function(e) {
             state.durationFrames = parseInt(e.target.value, 10);
+        });
+    }
+    var countSelect = document.getElementById('count-select');
+    if (countSelect) {
+        countSelect.addEventListener('change', function(e) {
+            state.videoCount = parseInt(e.target.value, 10);
+            updateGenerateBtn();
         });
     }
     var framingSelect = document.getElementById('framing-select');
@@ -1588,7 +1724,7 @@ function stopGeneration() {
     renderStyles();
     renderImages();
     renderQueue();
-    log('Prêt.');
+    log('Prêt. Mode image ou mode texte selon votre sélection.');
 })();
 </script>
 
